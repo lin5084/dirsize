@@ -1,8 +1,5 @@
 name: Build dirsize.exe
-
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -12,14 +9,18 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Install MinGW-w64
-        uses: egor-tensin/setup-mingw@v2
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
         with:
-          version: 13.2.0
-          arch: x64
+          msystem: mingw64
+          update: true
+          install: mingw-w64-x86_64-gcc
 
-      - name: Compile
-        run: gcc dirsize.c -o dirsize.exe -Wall
+      - name: Compile static build
+        shell: msys2 {0}
+        run: |
+          gcc dirsize.c -o dirsize.exe -Wall -static
+          ls -l dirsize.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
