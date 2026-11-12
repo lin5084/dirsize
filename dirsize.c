@@ -21,7 +21,6 @@ int overCnt = 0;
 NormalItem* normalList = NULL;
 int normalCnt = 0;
 
-// 格式化大小
 void fmt_size(unsigned long long bytes, char *buf)
 {
     if (bytes < 1024)
@@ -34,7 +33,6 @@ void fmt_size(unsigned long long bytes, char *buf)
         sprintf(buf, "%.2f GB", bytes / (1024.0 * 1024 * 1024));
 }
 
-// 返回 1=超过1G提前终止；0=正常算完
 int calc_dir(const WCHAR *path, unsigned long long *total)
 {
     WCHAR search[MAX_PATH];
@@ -57,7 +55,7 @@ int calc_dir(const WCHAR *path, unsigned long long *total)
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             unsigned long long subsz;
             int subOver = calc_dir(subpath, &subsz);
-            (void)subOver; // 消除unused警告
+            (void)subOver;
             *total += subsz;
         } else {
             LARGE_INTEGER sz;
@@ -76,7 +74,6 @@ int calc_dir(const WCHAR *path, unsigned long long *total)
     return 0;
 }
 
-// 超限文件夹：名字升序
 int cmpOverName(const void *a, const void *b)
 {
     OverItem *oa = (OverItem *)a;
@@ -84,7 +81,6 @@ int cmpOverName(const void *a, const void *b)
     return wcscmp(oa->name, ob->name);
 }
 
-// 普通条目：大小降序
 int cmpNormalSize(const void *a, const void *b)
 {
     NormalItem *na = (NormalItem *)a;
@@ -94,7 +90,6 @@ int cmpNormalSize(const void *a, const void *b)
     return 0;
 }
 
-// wchar_t 转 utf8 用于控制台输出
 static int wchar_to_utf8(const WCHAR *wstr, char *utf8, int bufLen)
 {
     return WideCharToMultiByte(CP_UTF8, 0, wstr, -1, utf8, bufLen, NULL, NULL);
@@ -169,7 +164,7 @@ void scan_current()
     }
 }
 
-int wmain()
+int main()
 {
     scan_current();
     free(overList);
