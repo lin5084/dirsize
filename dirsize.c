@@ -3,14 +3,14 @@
 #include <string.h>
 #include <windows.h>
 
-#define LIMIT_1G (1ULL << 30) // 1GB
+#define LIMIT_1G (1ULL << 30)
 
 typedef struct {
-    char name[MAX_PATH];
+    WCHAR name[MAX_PATH];
 } OverItem;
 
 typedef struct {
-    char name[MAX_PATH];
+    WCHAR name[MAX_PATH];
     unsigned long long size;
     int is_dir;
 } NormalItem;
@@ -21,7 +21,7 @@ int overCnt = 0;
 NormalItem* normalList = NULL;
 int normalCnt = 0;
 
-// 格式化大小字符串
+// 格式化大小
 void fmt_size(unsigned long long bytes, char *buf)
 {
     if (bytes < 1024)
@@ -34,27 +34,25 @@ void fmt_size(unsigned long long bytes, char *buf)
         sprintf(buf, "%.2f GB", bytes / (1024.0 * 1024 * 1024));
 }
 
-/*
-返回：1=已经超过1GB，提前终止；0=正常遍历完毕，返回精确size
-*/
-int calc_dir(const char *path, unsigned long long *total)
+// 返回 1=超过1G提前终止；0=正常算完
+int calc_dir(const WCHAR *path, unsigned long long *total)
 {
-    char search[MAX_PATH];
-    WIN32_FIND_DATA fd;
+    WCHAR search[MAX_PATH];
+    WIN32_FIND_DATAW fd;
     HANDLE hFind;
     *total = 0;
 
-    snprintf(search, MAX_PATH, "%s\\*", path);
-    hFind = FindFirstFileA(search, &fd);
+    swprintf(search, MAX_PATH, L"%s\\*", path);
+    hFind = FindFirstFileW(search, &fd);
     if (hFind == INVALID_HANDLE_VALUE)
         return 0;
 
     do {
-        if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0)
+        if (wcscmp(fd.cFileName, L".") == 0 || wcscmp(fd.cFileName, L"..") == 0)
             continue;
 
-        char subpath[MAX_PATH];
-        snprintf(subpath, MAX_PATH, "%s\\%s", path, fd.cFileName);
+        WCHAR subpath[MAX_PATH];
+        swprintf(subpath, MAX_PATH, L"%s\\%s", path, fd.cFileName);
 
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             unsigned long long subsz;
@@ -71,21 +69,21 @@ int calc_dir(const char *path, unsigned long long *total)
             FindClose(hFind);
             return 1;
         }
-    } while (FindNextFileA(hFind, &fd));
+    } while (FindNextFileW(hFind, &fd));
 
     FindClose(hFind);
     return 0;
 }
 
-// 超限文件夹：按名字升序
+// 超限文件夹：名字升序
 int cmpOverName(const void *a, const void *b)
 {
     OverItem *oa = (OverItem *)a;
     OverItem *ob = (OverItem *)b;
-    return strcmp(oa->name, ob->name);
+    return wcscmp(oa->name, ob->name);
 }
 
-// 普通条目：按大小降序
+// 普通条目：大小降序
 int cmpNormalSize(const void *a, const void *b)
 {
     NormalItem *na = (NormalItem *)a;
@@ -95,76 +93,82 @@ int cmpNormalSize(const void *a, const void *b)
     return 0;
 }
 
+// wchar_t 转 utf8 用于控制台输出
+static int wchar_to_utf8(const WCHAR *wstr, char *utf8, int bufLen)
+{
+    return WideCharToMultiByte(CP_UTF8, 0, wstr, -1, utf8, bufLen, NULL, NULL);
+}
+
 void scan_current()
 {
-    char cur[MAX_PATH];
-    char search[MAX_PATH];
-    WIN32_FIND_DATA fd;
+    WCHAR cur[MAX_PATH];
+    WCHAR search[MAX_PATH];
+    WIN32_FIND_DATAW fd;
     HANDLE hFind;
-    GetCurrentDirectoryA(MAX_PATH, cur);
+    GetCurrentDirectoryW(MAX_PATH, cur);
 
-    snprintf(search, MAX_PATH, "%s\\*", cur);
-    hFind = FindFirstFileA(search, &fd);
+    swprintf(search, MAX_PATH, L"%s\\*", cur);
+    hFind = FindFirstFileW(search, &fd);
     if (hFind == INVALID_HANDLE_VALUE) {
         printf("无法读取当前目录\n");
         return;
     }
 
     do {
-        if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0)
+        if (wcscmp(fd.cFileName, L".") == 0 || wcscmp(fd.cFileName, L"..") == 0)
             continue;
 
-        char fullpath[MAX_PATH];
-        snprintf(fullpath, MAX_PATH, "%s\\%s", cur, fd.cFileName);
+        WCHAR fullpath[MAX_PATH];
+        swprintf(fullpath, MAX_PATH, L"%s\\%s", cur, fd.cFileName);
 
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             unsigned long long sz = 0;
             int isOver = calc_dir(fullpath, &sz);
             if (isOver) {
-                // 加入超限组
                 overList = realloc(overList, (overCnt + 1) * sizeof(OverItem));
-                strncpy(overList[overCnt].name, fd.cFileName, MAX_PATH - 1);
+                wcscpy(overList[overCnt].name, fd.cFileName);
                 overCnt++;
             } else {
-                // 精确大小 <=1G，加入普通组
                 normalList = realloc(normalList, (normalCnt + 1) * sizeof(NormalItem));
-                strncpy(normalList[normalCnt].name, fd.cFileName, MAX_PATH - 1);
+                wcscpy(normalList[normalCnt].name, fd.cFileName);
                 normalList[normalCnt].size = sz;
                 normalList[normalCnt].is_dir = 1;
                 normalCnt++;
             }
         } else {
-            // 文件直接进普通组
             LARGE_INTEGER sz;
             sz.LowPart = fd.nFileSizeLow;
             sz.HighPart = fd.nFileSizeHigh;
             normalList = realloc(normalList, (normalCnt + 1) * sizeof(NormalItem));
-            strncpy(normalList[normalCnt].name, fd.cFileName, MAX_PATH - 1);
+            wcscpy(normalList[normalCnt].name, fd.cFileName);
             normalList[normalCnt].size = sz.QuadPart;
             normalList[normalCnt].is_dir = 0;
             normalCnt++;
         }
-    } while (FindNextFileA(hFind, &fd));
+    } while (FindNextFileW(hFind, &fd));
     FindClose(hFind);
 
-    // 排序
     qsort(overList, overCnt, sizeof(OverItem), cmpOverName);
     qsort(normalList, normalCnt, sizeof(NormalItem), cmpNormalSize);
 
+    SetConsoleOutputCP(CP_UTF8);
     puts("===== 大于1GB的文件夹（按名称排序） =====");
+    char utf8buf[512];
     for (int i = 0; i < overCnt; i++) {
-        printf("%-40s  > 1GB\n", overList[i].name);
+        wchar_to_utf8(overList[i].name, utf8buf, sizeof(utf8buf));
+        printf("%-40s  > 1GB\n", utf8buf);
     }
 
     puts("\n===== 文件 / 小于等于1GB文件夹（按大小降序） =====");
-    char buf[64];
+    char sizbuf[64];
     for (int i = 0; i < normalCnt; i++) {
-        fmt_size(normalList[i].size, buf);
-        printf("%-40s  %s\n", normalList[i].name, buf);
+        fmt_size(normalList[i].size, sizbuf);
+        wchar_to_utf8(normalList[i].name, utf8buf, sizeof(utf8buf));
+        printf("%-40s  %s\n", utf8buf, sizbuf);
     }
 }
 
-int main()
+int wmain()
 {
     scan_current();
     free(overList);
