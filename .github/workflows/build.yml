@@ -1,26 +1,21 @@
 name: Build dirsize.exe
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: mingw64
-          update: true
-          install: mingw-w64-x86_64-gcc
+      - name: Install cross mingw64
+        run: sudo apt update && sudo apt install -y mingw-w64
 
-      - name: Compile static build
-        shell: msys2 {0}
-        run: |
-          gcc dirsize.c -o dirsize.exe -Wall -static
-          ls -l dirsize.exe
+      - name: Compile static console program
+        run: x86_64-w64-mingw32-gcc dirsize.c -o dirsize.exe -Wall -static -mconsole
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
