@@ -90,7 +90,6 @@ int cmpNormalSize(const void *a, const void *b)
     return 0;
 }
 
-// 宽字符输出到控制台
 static void wputs(const WCHAR *s)
 {
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -151,7 +150,6 @@ void scan_current()
     qsort(normalList, normalCnt, sizeof(NormalItem), cmpNormalSize);
 
     wputs(L"===== 大于1GB的文件夹（按名称排序） =====\n");
-    char sizbuf[64];
     for (int i = 0; i < overCnt; i++) {
         WCHAR linebuf[512];
         swprintf(linebuf, 512, L"%-40s  > 1GB\n", overList[i].name);
@@ -159,8 +157,9 @@ void scan_current()
     }
 
     wputs(L"\n===== 文件 / 小于等于1GB文件夹（按大小降序） =====\n");
+    char sizbuf[64];
     for (int i = 0; i < normalCnt; i++) {
-        fmt_size(normalCnt[i].size, sizbuf);
+        fmt_size(normalList[i].size, sizbuf);
         WCHAR linebuf[512];
         swprintf(linebuf, 512, L"%-40s  %s\n", normalList[i].name, sizbuf);
         wputs(linebuf);
