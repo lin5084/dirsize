@@ -1,7 +1,6 @@
 name: Build dirsize.exe
 on:
-  push:
-    branches: [ main ]
+
   workflow_dispatch:
 
 jobs:
