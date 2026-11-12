@@ -21,16 +21,25 @@ int overCnt = 0;
 NormalItem* normalList = NULL;
 int normalCnt = 0;
 
-void fmt_size(unsigned long long bytes, char *buf)
+// 直接输出宽字符版本大小
+static void fmt_size_w(unsigned long long bytes, WCHAR *buf, int bufLen)
 {
     if (bytes < 1024)
-        sprintf(buf, "%llu B", bytes);
+    {
+        swprintf(buf, bufLen, L"%llu B", bytes);
+    }
     else if (bytes < 1024ULL * 1024)
-        sprintf(buf, "%.2f KB", bytes / 1024.0);
+    {
+        swprintf(buf, bufLen, L"%.2f KB", bytes / 1024.0);
+    }
     else if (bytes < 1024ULL * 1024 * 1024)
-        sprintf(buf, "%.2f MB", bytes / (1024.0 * 1024));
+    {
+        swprintf(buf, bufLen, L"%.2f MB", bytes / (1024.0 * 1024));
+    }
     else
-        sprintf(buf, "%.2f GB", bytes / (1024.0 * 1024 * 1024));
+    {
+        swprintf(buf, bufLen, L"%.2f GB", bytes / (1024.0 * 1024 * 1024));
+    }
 }
 
 int calc_dir(const WCHAR *path, unsigned long long *total)
@@ -52,19 +61,23 @@ int calc_dir(const WCHAR *path, unsigned long long *total)
         WCHAR subpath[MAX_PATH];
         swprintf(subpath, MAX_PATH, L"%s\\%s", path, fd.cFileName);
 
-        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
             unsigned long long subsz;
             int subOver = calc_dir(subpath, &subsz);
             (void)subOver;
             *total += subsz;
-        } else {
+        }
+        else
+        {
             LARGE_INTEGER sz;
             sz.LowPart = fd.nFileSizeLow;
             sz.HighPart = fd.nFileSizeHigh;
             *total += sz.QuadPart;
         }
 
-        if (*total >= LIMIT_1G) {
+        if (*total >= LIMIT_1G)
+        {
             FindClose(hFind);
             return 1;
         }
@@ -107,7 +120,8 @@ void scan_current()
 
     swprintf(search, MAX_PATH, L"%s\\*", cur);
     hFind = FindFirstFileW(search, &fd);
-    if (hFind == INVALID_HANDLE_VALUE) {
+    if (hFind == INVALID_HANDLE_VALUE)
+    {
         wputs(L"无法读取当前目录\n");
         return;
     }
@@ -119,21 +133,27 @@ void scan_current()
         WCHAR fullpath[MAX_PATH];
         swprintf(fullpath, MAX_PATH, L"%s\\%s", cur, fd.cFileName);
 
-        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
             unsigned long long sz = 0;
             int isOver = calc_dir(fullpath, &sz);
-            if (isOver) {
+            if (isOver)
+            {
                 overList = realloc(overList, (overCnt + 1) * sizeof(OverItem));
                 wcscpy(overList[overCnt].name, fd.cFileName);
                 overCnt++;
-            } else {
+            }
+            else
+            {
                 normalList = realloc(normalList, (normalCnt + 1) * sizeof(NormalItem));
                 wcscpy(normalList[normalCnt].name, fd.cFileName);
                 normalList[normalCnt].size = sz;
                 normalList[normalCnt].is_dir = 1;
                 normalCnt++;
             }
-        } else {
+        }
+        else
+        {
             LARGE_INTEGER sz;
             sz.LowPart = fd.nFileSizeLow;
             sz.HighPart = fd.nFileSizeHigh;
@@ -150,16 +170,18 @@ void scan_current()
     qsort(normalList, normalCnt, sizeof(NormalItem), cmpNormalSize);
 
     wputs(L"===== 大于1GB的文件夹（按名称排序） =====\n");
-    for (int i = 0; i < overCnt; i++) {
+    for (int i = 0; i < overCnt; i++)
+    {
         WCHAR linebuf[512];
         swprintf(linebuf, 512, L"%-40s  > 1GB\n", overList[i].name);
         wputs(linebuf);
     }
 
     wputs(L"\n===== 文件 / 小于等于1GB文件夹（按大小降序） =====\n");
-    char sizbuf[64];
-    for (int i = 0; i < normalCnt; i++) {
-        fmt_size(normalList[i].size, sizbuf);
+    for (int i = 0; i < normalCnt; i++)
+    {
+        WCHAR sizbuf[64];
+        fmt_size_w(normalList[i].size, sizbuf, 64);
         WCHAR linebuf[512];
         swprintf(linebuf, 512, L"%-40s  %s\n", normalList[i].name, sizbuf);
         wputs(linebuf);
