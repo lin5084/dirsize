@@ -90,9 +90,12 @@ int cmpNormalSize(const void *a, const void *b)
     return 0;
 }
 
-static int wchar_to_utf8(const WCHAR *wstr, char *utf8, int bufLen)
+// 宽字符输出到控制台
+static void wputs(const WCHAR *s)
 {
-    return WideCharToMultiByte(CP_UTF8, 0, wstr, -1, utf8, bufLen, NULL, NULL);
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD written;
+    WriteConsoleW(hConsole, s, lstrlenW(s), &written, NULL);
 }
 
 void scan_current()
@@ -106,7 +109,7 @@ void scan_current()
     swprintf(search, MAX_PATH, L"%s\\*", cur);
     hFind = FindFirstFileW(search, &fd);
     if (hFind == INVALID_HANDLE_VALUE) {
-        printf("无法读取当前目录\n");
+        wputs(L"无法读取当前目录\n");
         return;
     }
 
@@ -147,20 +150,20 @@ void scan_current()
     qsort(overList, overCnt, sizeof(OverItem), cmpOverName);
     qsort(normalList, normalCnt, sizeof(NormalItem), cmpNormalSize);
 
-    SetConsoleOutputCP(CP_UTF8);
-    puts("===== 大于1GB的文件夹（按名称排序） =====");
-    char utf8buf[512];
+    wputs(L"===== 大于1GB的文件夹（按名称排序） =====\n");
+    char sizbuf[64];
     for (int i = 0; i < overCnt; i++) {
-        wchar_to_utf8(overList[i].name, utf8buf, sizeof(utf8buf));
-        printf("%-40s  > 1GB\n", utf8buf);
+        WCHAR linebuf[512];
+        swprintf(linebuf, 512, L"%-40s  > 1GB\n", overList[i].name);
+        wputs(linebuf);
     }
 
-    puts("\n===== 文件 / 小于等于1GB文件夹（按大小降序） =====");
-    char sizbuf[64];
+    wputs(L"\n===== 文件 / 小于等于1GB文件夹（按大小降序） =====\n");
     for (int i = 0; i < normalCnt; i++) {
-        fmt_size(normalList[i].size, sizbuf);
-        wchar_to_utf8(normalList[i].name, utf8buf, sizeof(utf8buf));
-        printf("%-40s  %s\n", utf8buf, sizbuf);
+        fmt_size(normalCnt[i].size, sizbuf);
+        WCHAR linebuf[512];
+        swprintf(linebuf, 512, L"%-40s  %s\n", normalList[i].name, sizbuf);
+        wputs(linebuf);
     }
 }
 
@@ -169,7 +172,7 @@ int main()
     scan_current();
     free(overList);
     free(normalList);
-    printf("\n按回车退出...");
+    wputs(L"\n按回车退出...");
     getchar();
     return 0;
 }
