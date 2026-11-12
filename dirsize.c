@@ -57,6 +57,7 @@ int calc_dir(const WCHAR *path, unsigned long long *total)
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             unsigned long long subsz;
             int subOver = calc_dir(subpath, &subsz);
+            (void)subOver; // 消除unused警告
             *total += subsz;
         } else {
             LARGE_INTEGER sz;
