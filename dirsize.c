@@ -3,7 +3,12 @@
 #include <string.h>
 #include <windows.h>
 
-#define LIMIT_1G (1ULL << 30)
+// ===================== 【修改这里！】=====================
+// 只改这一行数字，1=1GB，2=2GB，3=3GB
+#define SCAN_THRESHOLD_GB  2
+// =========================================================
+
+#define SCAN_THRESHOLD_BYTES  ((unsigned long long)SCAN_THRESHOLD_GB << 30)
 
 typedef struct {
     WCHAR name[MAX_PATH];
@@ -21,7 +26,6 @@ int overCnt = 0;
 NormalItem* normalList = NULL;
 int normalCnt = 0;
 
-// 直接输出宽字符版本大小
 static void fmt_size_w(unsigned long long bytes, WCHAR *buf, int bufLen)
 {
     if (bytes < 1024)
@@ -76,7 +80,7 @@ int calc_dir(const WCHAR *path, unsigned long long *total)
             *total += sz.QuadPart;
         }
 
-        if (*total >= LIMIT_1G)
+        if (*total >= SCAN_THRESHOLD_BYTES)
         {
             FindClose(hFind);
             return 1;
@@ -169,21 +173,29 @@ void scan_current()
     qsort(overList, overCnt, sizeof(OverItem), cmpOverName);
     qsort(normalList, normalCnt, sizeof(NormalItem), cmpNormalSize);
 
-    wputs(L"===== 大于1GB的文件夹（按名称排序） =====\n");
+    WCHAR header[256];
+    WCHAR linefmt[256];
+    swprintf(header, _countof(header), L"===== 大于%dGB的文件夹（按名称排序） =====\n", SCAN_THRESHOLD_GB);
+    swprintf(linefmt, _countof(linefmt), L"%%-40s  > %dGB\n", SCAN_THRESHOLD_GB);
+    wputs(header);
+
     for (int i = 0; i < overCnt; i++)
     {
         WCHAR linebuf[512];
-        swprintf(linebuf, 512, L"%-40s  > 1GB\n", overList[i].name);
+        swprintf(linebuf, _countof(linebuf), linefmt, overList[i].name);
         wputs(linebuf);
     }
 
-    wputs(L"\n===== 文件 / 小于等于1GB文件夹（按大小降序） =====\n");
+    WCHAR header2[256];
+    swprintf(header2, _countof(header2), L"\n===== 文件 / 小于等于%dGB文件夹（按大小降序） =====\n", SCAN_THRESHOLD_GB);
+    wputs(header2);
+
     for (int i = 0; i < normalCnt; i++)
     {
         WCHAR sizbuf[64];
-        fmt_size_w(normalList[i].size, sizbuf, 64);
+        fmt_size_w(normalList[i].size, sizbuf, _countof(sizbuf));
         WCHAR linebuf[512];
-        swprintf(linebuf, 512, L"%-40s  %s\n", normalList[i].name, sizbuf);
+        swprintf(linebuf, _countof(linebuf), L"%-40s  %s\n", normalList[i].name, sizbuf);
         wputs(linebuf);
     }
 }
